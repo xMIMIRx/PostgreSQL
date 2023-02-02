@@ -1,0 +1,500 @@
+-- CZĘŚĆ 1 ================================================================
+DROP SCHEMA IF EXISTS pilka_nozna CASCADE;
+CREATE SCHEMA pilka_nozna;
+
+DROP TABLE IF EXISTS druzyna CASCADE;
+CREATE TABLE druzyna(
+	id_druzyna SERIAL PRIMARY KEY,
+	nazwa VARCHAR(80) NOT NULL,
+	trener VARCHAR(80) NOT NULL,
+	stadion VARCHAR(150) NOT NULL,
+	prezes VARCHAR(80) NOT NULL
+);
+
+CREATE TYPE enum_pilkarze
+AS ENUM('Środkowy Napastnik','Drugi Napastnik','Prawy Napastnik','Lewy Napastnik',
+		'Defensywny Pomocnik','Środkowy Pomocnik','Ofensywny Pomocnik','Skrzydłowy Pomocnik','Lewy Pomocnik','Prawy Pomocnik',
+		'Środkowy Obrońca','Lewy Obrońca','Prawy Obrońca','Stoper',
+		'Bramkarz');
+	
+DROP TABLE IF EXISTS pilkarze CASCADE;
+CREATE TABLE pilkarze(
+	id_pilkarze SERIAL PRIMARY KEY,
+	imie VARCHAR(40) NOT NULL,
+	nazwisko VARCHAR(40) NOT NULL,
+	numer INTEGER NOT NULL,
+	wiek INTEGER NOT NULL,
+	narodowosc VARCHAR(90) NOT NULL,
+	pozycja enum_pilkarze NOT NULL,
+	wartosc_rynkowa INTEGER NOT NULL,
+	wzrost DECIMAL(5,2) NOT NULL,
+	druzyna_id_fkey INTEGER NOT NULL,
+	tytuly TEXT,
+		CONSTRAINT pilkarze_druzyna_fkey FOREIGN KEY (druzyna_id_fkey) REFERENCES druzyna (id_druzyna)
+);
+
+DROP TABLE IF EXISTS transfer CASCADE;
+CREATE TABLE transfer(
+	id_transfer SERIAL PRIMARY KEY,
+	klub_oddajacy VARCHAR(80) NOT NULL,
+	umowa_do DATE NOT NULL,
+	wartosc_rynkowa DECIMAL(11,2) NOT NULL,
+	druzyna_id_fkey INTEGER NOT NULL,
+		CONSTRAINT transfer_druzyna_fkey FOREIGN KEY (druzyna_id_fkey) REFERENCES druzyna (id_druzyna),
+	pilkarze_id_fkey INTEGER NOT NULL,
+		CONSTRAINT transfer_pilkarze_fkey FOREIGN KEY (pilkarze_id_fkey) REFERENCES pilkarze (id_pilkarze)
+);
+
+DROP TABLE IF EXISTS tabela_wynikow CASCADE;
+CREATE TABLE tabela_wynikow(
+	id_tabela_wynikow SERIAL PRIMARY KEY,
+	rozegrane_mecze INTEGER NOT NULL,
+	wygrane INTEGER NOT NULL,
+	remisy INTEGER NOT NULL,
+	przegrane INTEGER NOT NULL,
+	bramki INTEGER NOT NULL,
+	stracone_bramki INTEGER NOT NULL,
+	punkty INTEGER NOT NULL,
+	druzyna_id_fkey INTEGER NOT NULL,
+	data_update TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		CONSTRAINT tabela_wynikow_druzyna_fkey FOREIGN KEY (druzyna_id_fkey) REFERENCES druzyna (id_druzyna)
+);
+
+DROP TABLE IF EXISTS podsumowanie_meczu CASCADE;
+CREATE TABLE podsumowanie_meczu(
+	id_podsumowanie_meczu SERIAL PRIMARY KEY,
+	ilosc_strzalow INTEGER NOT NULL,
+	ilosc_celnych_strzalow INTEGER NOT NULL,
+	liczba_podan INTEGER NOT NULL,
+	liczba_zoltych_kartek INTEGER NOT NULL,
+	liczba_czerwonych_kartek INTEGER NOT NULL,
+	liczba_rzutow_karnych INTEGER NOT NULL,
+	zwyciestwo BOOLEAN NOT NULL
+);
+
+DROP TABLE IF EXISTS mecze CASCADE;
+CREATE TABLE mecze(
+	id_mecze INTEGER PRIMARY KEY,
+	data_wydarzenia DATE NOT NULL,
+	wynik VARCHAR(45) NOT NULL,
+ podsumowanie_meczu_id_fkey INTEGER UNIQUE NOT NULL,
+		CONSTRAINT mecze_podsumowanie_meczu_fkey FOREIGN KEY (podsumowanie_meczu_id_fkey) REFERENCES podsumowanie_meczu (id_podsumowanie_meczu)
+);
+
+DROP TABLE IF EXISTS druzyna_has_mecze CASCADE;
+CREATE TABLE druzyna_has_mecze(
+ druzyna_id_fkey INTEGER NOT NULL,
+ 	CONSTRAINT druzyna_has_mecze_druzyna_fkey FOREIGN KEY (druzyna_id_fkey) REFERENCES druzyna (id_druzyna),
+ mecze_id_fkey INTEGER NOT NULL,
+		CONSTRAINT druzyna_has_mecze_mecze_fkey FOREIGN KEY (mecze_id_fkey) REFERENCES mecze (id_mecze)
+);
+
+
+-- CZĘŚĆ 2 ================================================================
+--ALTER TABLE druzyna_has_mecze DROP CONSTRAINT druzyna_has_mecze_druzyna_fkey;
+---- TEN ALTER TRZEBA WYKONAĆ DWA RAZY NWM CZEGO
+--ALTER TABLE druzyna_has_mecze ADD CONSTRAINT druzyna_has_mecze_druzyna_fkey FOREIGN KEY (druzyna_id_fkey) REFERENCES druzyna (id_druzyna);
+
+ALTER TABLE mecze DROP CONSTRAINT mecze_pkey CASCADE;
+ALTER TABLE mecze ADD CONSTRAINT mecze_pkey PRIMARY KEY (id_mecze);
+
+CREATE SEQUENCE mecze_sequence
+ INCREMENT BY 1
+ MINVALUE 1
+ MAXVALUE 2147483647
+ START 1
+ CACHE 1
+ NO CYCLE
+;
+
+ALTER TABLE mecze ALTER COLUMN id_mecze SET DEFAULT nextval('mecze_sequence');
+
+ALTER SEQUENCE mecze_sequence START 7;
+
+ALTER TABLE pilkarze ADD CHECK (wzrost < 2.50);
+
+ALTER TABLE druzyna ADD UNIQUE (nazwa, stadion);
+
+ALTER TABLE tabela_wynikow ALTER COLUMN rozegrane_mecze SET DEFAULT 0;
+ALTER TABLE pilkarze ALTER COLUMN tytuly SET DEFAULT 'brak';
+ALTER TABLE pilkarze ALTER COLUMN narodowosc SET DEFAULT 'brak danych';
+
+ALTER TABLE pilkarze ALTER COLUMN wzrost TYPE NUMERIC;
+ALTER TABLE pilkarze ALTER COLUMN wzrost TYPE DECIMAL(5,2);
+
+ALTER TABLE pilkarze RENAME COLUMN wzrost TO wzrost_zawodnika;
+ALTER TABLE pilkarze RENAME COLUMN wzrost_zawodnika TO wzrost;
+
+ALTER TABLE podsumowanie_meczu ADD faule VARCHAR(45) NOT NULL DEFAULT 'brak'; 
+ALTER TABLE podsumowanie_meczu DROP COLUMN faule;
+
+-- CZĘŚĆ 3 ================================================================
+-- DRUŻYNA
+BEGIN;
+INSERT INTO druzyna(nazwa,trener,stadion,prezes) VALUES('Bayern Monachium','Flick Hans-Dieter','Allianz Arena','Herbert Hainer');
+INSERT INTO druzyna(nazwa,trener,stadion,prezes) VALUES('RB Leipzig','Julian Nagelsmann','Red Bull Arena Lipsk','Oliver Mintzlaff');
+INSERT INTO druzyna(nazwa,trener,stadion,prezes) VALUES('Vfl Wolfsburg','Oliver Glasner','Volkswagen-Arena','Hans Dieter Pötsch');
+INSERT INTO druzyna(nazwa,trener,stadion,prezes) VALUES('Borussia Dortmund','Edin Terzić','Signal Iduna Park','Hans-Joachim Watzke');
+INSERT INTO druzyna(nazwa,trener,stadion,prezes) VALUES('Eintracht Frankfurt','Adi Hütter','Commerzbank-Arena','Peter Fischer');
+INSERT INTO druzyna(nazwa,trener,stadion,prezes) VALUES('Bayer Leverkusen','Hannes Wolf','BayArena','Fernando Carro');
+INSERT INTO druzyna(nazwa,trener,stadion,prezes) VALUES('Borussia Mönchengladbach','Marco Rose','Borussia-Park','Rolf Königs');
+INSERT INTO druzyna(nazwa,trener,stadion,prezes) VALUES('1. FC Union Berlin','Urs Fischer','Stadion An der Alten Försterei','Dirk Zingler');
+INSERT INTO druzyna(nazwa,trener,stadion,prezes) VALUES('SC Freiburg','Christian Streich','Schwarzwald-Stadion','Fritz Keller');
+INSERT INTO druzyna(nazwa,trener,stadion,prezes) VALUES('VfB Stuttgart','Pellegrino Matarazzo','Mercedes-Benz Arena','Claus Vogt');
+INSERT INTO druzyna(nazwa,trener,stadion,prezes) VALUES('TSG Hoffenheim','Sebastian Hoeneß','Rhein-Neckar-Arena','Dietmar Hopp');
+INSERT INTO druzyna(nazwa,trener,stadion,prezes) VALUES('1. FSV Mainz 05','Bo Svensson','Opel Arena','Stefan Hofmann');
+INSERT INTO druzyna(nazwa,trener,stadion,prezes) VALUES('FC Augsburg','Markus Weinzierl','WWK Arena','Klaus Hofmann');
+INSERT INTO druzyna(nazwa,trener,stadion,prezes) VALUES('Hertha Berlin','Pál Dárdai','Stadion Olimpijski w Berlinie','Werner Gegenbauer');
+INSERT INTO druzyna(nazwa,trener,stadion,prezes) VALUES('Werder Brema','Florian Kohfeldt','Weserstadion','Klaus Filbry');
+INSERT INTO druzyna(nazwa,trener,stadion,prezes) VALUES('Arminia Bielefeld','Frank Kramer','SchücoArena','Hans-Jürgen Laufer');
+INSERT INTO druzyna(nazwa,trener,stadion,prezes) VALUES('1. FC Köln','Friedhelm Funkel','RheinEnergieStadion','Alexander Wehrle');
+INSERT INTO druzyna(nazwa,trener,stadion,prezes) VALUES('FC Schalke 04','Dimitrios Grammozis','Veltins-Arena','Alexander Jobst');
+INSERT INTO druzyna(nazwa,trener,stadion,prezes) VALUES('Bochum','Thomas Reis','Rewirpowerstadion','Hans-Peter Villis');
+INSERT INTO druzyna(nazwa,trener,stadion,prezes) VALUES('Furth','Stefan Leitl','Trolli ARENA','Fred Höfler');
+INSERT INTO druzyna(nazwa,trener,stadion,prezes) VALUES('Holstein Kiel','Ole Werner','Holstein-Stadion','Steffen Schneekloth');
+INSERT INTO druzyna(nazwa,trener,stadion,prezes) VALUES('Fortuna Düsseldorf','Robert Schäfer','Merkur Spiel-Arena','Düsseldorf');
+INSERT INTO druzyna(nazwa,trener,stadion,prezes) VALUES('Hamburger SV','Daniel Thioune','Volksparkstadion','Marcell Jansen');
+INSERT INTO druzyna(nazwa,trener,stadion,prezes) VALUES('1. FC Heidenheim','Frank Schmidt','Voith-Arena',' Klaus Mayer');
+INSERT INTO druzyna(nazwa,trener,stadion,prezes) VALUES('FC St. Pauli','Timo Schultz','Millerntor-Stadion','Oke Göttlich');
+INSERT INTO druzyna(nazwa,trener,stadion,prezes) VALUES('SC Paderborn 07','Steffen Baumgart','Benteler-Arena','Martin Hornberger');
+INSERT INTO druzyna(nazwa,trener,stadion,prezes) VALUES('Karlsruher SC','Christian Eichner','Wildparkstadion','Holger Siegmund-Schultze');
+INSERT INTO druzyna(nazwa,trener,stadion,prezes) VALUES('SV Darmstadt 98','Markus Anfang','Merck-Stadion am Böllenfalltor','Merck-Stadion am Böllenfalltor');
+INSERT INTO druzyna(nazwa,trener,stadion,prezes) VALUES('FC Erzgebirge Aue','Dirk Schuster','Erzgebirsstadion','Helge Leonhardt');
+INSERT INTO druzyna(nazwa,trener,stadion,prezes) VALUES('1. FC Nürnberg','Robert Klauß','Max-Morlock-Stadion','Dr. Thomas Grethlein');
+INSERT INTO druzyna(nazwa,trener,stadion,prezes) VALUES('Hannover 96','Kenan Kocak','HDI-Arena','Martin Kind');
+INSERT INTO druzyna(nazwa,trener,stadion,prezes) VALUES('SSV Jahn Regensburg','Mersad Selimbegović','Jahnstadion Regensburg','Hans Rothammer');
+INSERT INTO druzyna(nazwa,trener,stadion,prezes) VALUES('SV Sandhausen','Uwe Koschinat','Hardtwaldstadion','Jürgen Machmeier');
+INSERT INTO druzyna(nazwa,trener,stadion,prezes) VALUES('Eintracht Braunschweig','Daniel Meyer','Eintracht-Stadion','Sebastian Ebel');
+INSERT INTO druzyna(nazwa,trener,stadion,prezes) VALUES('VfL Osnabrück','	Markus Feldhoff','Bremer Brücke','Jürgen Wehlend');
+INSERT INTO druzyna(nazwa,trener,stadion,prezes) VALUES('Würzburger Kickers','Bernhard Trares','flyeralarm Arena','Daniel Sauer');
+COMMIT;
+
+
+-- PIŁKARZE
+BEGIN;
+INSERT INTO pilkarze(imie,nazwisko,numer,wiek,narodowosc,pozycja,wartosc_rynkowa,wzrost,druzyna_id_fkey,tytuly) VALUES('Erling','Haaland',9,20,'Norwegia','Środkowy Napastnik',110000000,1.94,4,'2X KRÓL STRZELCÓW; 1X PIŁKARZ ROKU; 2X MISTRZ AUSTRII; 2X ZDOBYWCA PUCHARU AUSTRII');
+INSERT INTO pilkarze(imie,nazwisko,numer,wiek,narodowosc,pozycja,wartosc_rynkowa,wzrost,druzyna_id_fkey,tytuly) VALUES('Jadon','Sancho',7,21,'Anglia','Prawy Napastnik',100000000,1.80,4,'1X MISTRZ ŚWIATA U17=DO LAT SIEDEMNASTU; 1X ZDOBYWCA SUPERPUCHARU NIEMIEC');
+INSERT INTO pilkarze(imie,nazwisko,numer,wiek,narodowosc,pozycja,wartosc_rynkowa,wzrost,druzyna_id_fkey,tytuly) VALUES('Joshua','Kimmich',6,26,'Niemcy','Defensywny Pomocnik',90000000,1.77,1,'1X ZDOBYWCA LIGI MISTRZÓW; 6X MISTRZ NIEMIEC; 3X ZDOBYWCA PUCHARU NIEMIEC; 1X ZDOBYWCA KLUBOWYCH MISTRZOSTW ŚWIATA; 1X ZDOBYWCA PUCHARU KONFEDERACJI; 1X MISTRZ EUROPY U19=DO LAT DZIEWIETNASTU; 1X ZDOBYWCA SUPERPUCHARU UEFA; 4X ZDOBYWCA SUPERPUCHARU NIEMIEC');
+INSERT INTO pilkarze(imie,nazwisko,numer,wiek,narodowosc,pozycja,wartosc_rynkowa,wzrost,druzyna_id_fkey,tytuly) VALUES('Alphonso','Davies',19,20,'Buduburam','Lewy Obrońca',75000000,1.83,1,'1X KRÓL STRZELCÓW; 1X ZDOBYWCA LIGI MISTRZÓW; 3X MISTRZ NIEMIEC; 2X ZDOBYWCA PUCHARU NIEMIEC; 1X ZDOBYWCA KLUBOWYCH MISTRZOSTW ŚWIATA; 1X DEUTSCHER DRITTLIGAMEISTER; 1X ZDOBYWCA SUPERPUCHARU UEFA; 1X ZDOBYWCA SUPERPUCHARU NIEMIEC');
+INSERT INTO pilkarze(imie,nazwisko,numer,wiek,narodowosc,pozycja,wartosc_rynkowa,wzrost,druzyna_id_fkey,tytuly) VALUES('Serge','Gnabry',7,25,'Niemcy','Prawy Napastnik',70000000,1.76,1,'1X KRÓL STRZELCÓW; 1X ZDOBYWCA LIGI MISTRZÓW; 2X ZDOBYWCA PUCHARU ANGLII; 3X MISTRZ NIEMIEC; 2X ZDOBYWCA PUCHARU NIEMIEC; 1X ZDOBYWCA KLUBOWYCH MISTRZOSTW ŚWIATA; 1X MISTRZ EUROPY U21=DO LAT DWUDZIESTU JEDEN; 1X ZDOBYWCA SUPERPUCHARU UEFA; 2X ZDOBYWCA SUPERPUCHARU NIEMIEC; 2X ZDOBYWCA SUPERPUCHARU ANGLII');
+INSERT INTO pilkarze(imie,nazwisko,numer,wiek,narodowosc,pozycja,wartosc_rynkowa,wzrost,druzyna_id_fkey,tytuly) VALUES('Leroy','Sané',10,25,'Niemcy','Prawy Napastnik',70000000,1.83,1,'2X MISTRZ ANGLII; 1X ZDOBYWCA PUCHARU ANGLII; 2X ZDOBYWCA PUCHARU LIGI ANGIELSKIEJ; 1X MISTRZ NIEMIEC; 1X ZDOBYWCA KLUBOWYCH MISTRZOSTW ŚWIATA; 1X MISTRZ NIEMIEC U19=DO LAT DZIEWIETNASTU; 1X ZDOBYWCA SUPERPUCHARU UEFA; 2X ZDOBYWCA SUPERPUCHARU ANGLII');
+INSERT INTO pilkarze(imie,nazwisko,numer,wiek,narodowosc,pozycja,wartosc_rynkowa,wzrost,druzyna_id_fkey,tytuly) VALUES('Leon','Goretzka',18,26,'Niemcy','Środkowy Pomocnik',70000000,1.89,1,'1X KRÓL STRZELCÓW; 1X ZDOBYWCA LIGI MISTRZÓW; 3X MISTRZ NIEMIEC; 2X ZDOBYWCA PUCHARU NIEMIEC; 1X ZDOBYWCA PUCHARU KONFEDERACJI; 1X ZDOBYWCA SUPERPUCHARU UEFA; 1X ZDOBYWCA SUPERPUCHARU NIEMIEC');
+INSERT INTO pilkarze(imie,nazwisko,numer,wiek,narodowosc,pozycja,wartosc_rynkowa,wzrost,druzyna_id_fkey,tytuly) VALUES('Kingsley','Coman',29,24,'Francja','Lewy Napastnik',65000000,1.80,1,'1X ZDOBYWCA LIGI MISTRZÓW; 6X MISTRZ NIEMIEC; 3X ZDOBYWCA PUCHARU NIEMIEC; 2X MISTRZ WŁOCH; 1X ZDOBYWCA PUCHARU WŁOCH; 1X ZDOBYWCA SUPERPUCHARU WŁOCH; 2X MISTRZ FRANCJI; 1X ZDOBYWCA PUCHARU LIGI FRANCUSKIEJ; 1X ZDOBYWCA KLUBOWYCH MISTRZOSTW ŚWIATA; 1X ZDOBYWCA SUPERPUCHARU UEFA; 4X ZDOBYWCA SUPERPUCHARU NIEMIEC; 1X ZDOBYWCA SUPERPUCHARU FRANCJI');
+INSERT INTO pilkarze(imie,nazwisko,numer,wiek,narodowosc,pozycja,wartosc_rynkowa,wzrost,druzyna_id_fkey,tytuly) VALUES('Robert','Lewandowski',9,32,'Polska','Środkowy Napastnik',60000000,1.85,1,'1X PIŁKARZ ROKU FIFA; 1X UEFA BEST PLAYER IN EUROPE; 16X KRÓL STRZELCÓW; 9X PIŁKARZ ROKU; 9X PIŁKARZ ROKU; 9X MISTRZ NIEMIEC; 4X ZDOBYWCA PUCHARU NIEMIEC; 1X ZDOBYWCA KLUBOWYCH MISTRZOSTW ŚWIATA; 1X MISTRZ POLSKI; 1X ZDOBYWCA PUCHARU POLSKI; 1X ZDOBYWCA SUPERPUCHARU POLSKI; 1X ZDOBYWCA SUPERPUCHARU UEFA; 5X ZDOBYWCA SUPERPUCHARU NIEMIEC');
+INSERT INTO pilkarze(imie,nazwisko,numer,wiek,narodowosc,pozycja,wartosc_rynkowa,wzrost,druzyna_id_fkey,tytuly) VALUES('Dayot','Upamecano',5,22,'Francja','Środkowy Obrońca',60000000,1.86,2,'2X MISTRZ AUSTRII; 2X ZDOBYWCA PUCHARU AUSTRII; 1X MISTRZ EUROPY U17=DO LAT SIEDEMNASTU');
+INSERT INTO pilkarze(imie,nazwisko,numer,wiek,narodowosc,pozycja,wartosc_rynkowa,wzrost,druzyna_id_fkey,tytuly) VALUES('David','Alaba',27,28,'Austria','Środkowy Obrońca',55000000,1.80,1,'7X PIŁKARZ ROKU; 2X ZDOBYWCA LIGI MISTRZÓW; 10X MISTRZ NIEMIEC; 6X ZDOBYWCA PUCHARU NIEMIEC; 2X ZDOBYWCA KLUBOWYCH MISTRZOSTW ŚWIATA; 2X ZDOBYWCA SUPERPUCHARU UEFA; 5X ZDOBYWCA SUPERPUCHARU NIEMIEC; 2X MEISTER JUGENDLIGA U16 (AUT)');
+INSERT INTO pilkarze(imie,nazwisko,numer,wiek,narodowosc,pozycja,wartosc_rynkowa,wzrost,druzyna_id_fkey,tytuly) VALUES('Lucas','Hernández',21,25,'Francja','Lewy Obrońca',45000000,1.84,1,'1X MISTRZ ŚWIATA; 1X ZDOBYWCA LIGI MISTRZÓW; 2X MISTRZ NIEMIEC; 1X ZDOBYWCA PUCHARU NIEMIEC; 1X ZDOBYWCA KLUBOWYCH MISTRZOSTW ŚWIATA; 1X ZDOBYWCA LIGI EUROPEJSKIEJ; 2X ZDOBYWCA SUPERPUCHARU UEFA; 1X ZDOBYWCA SUPERPUCHARU NIEMIEC');
+INSERT INTO pilkarze(imie,nazwisko,numer,wiek,narodowosc,pozycja,wartosc_rynkowa,wzrost,druzyna_id_fkey) VALUES('Florian','Wirtz',27,18,'Niemcy','Ofensywny Pomocnik',45000000,1.76,6);
+INSERT INTO pilkarze(imie,nazwisko,numer,wiek,narodowosc,pozycja,wartosc_rynkowa,wzrost,druzyna_id_fkey,tytuly) VALUES('Marcel','Sabitzer',7,27,'Austria','Środkowy Pomocnik',42000000,1.77,2,'1X KRÓL STRZELCÓW; 1X PIŁKARZ ROKU; 1X MISTRZ AUSTRII; 1X ZDOBYWCA PUCHARU AUSTRII; 1X MISTRZ 2. LIGI (AUSTRIA)');
+INSERT INTO pilkarze(imie,nazwisko,numer,wiek,narodowosc,pozycja,wartosc_rynkowa,wzrost,druzyna_id_fkey,tytuly) VALUES('André','Silva',33,25,'Portugalia','Środkowy Napastnik',42000000,1.84,5,'1X ZAWODNIK ROKU');
+COMMIT;
+
+-- TABELA WYNIKÓW
+BEGIN;
+INSERT INTO tabela_wynikow(rozegrane_mecze,wygrane,remisy,przegrane,bramki,stracone_bramki,punkty,druzyna_id_fkey) VALUES (32,9,6,17,32,49,33,13);
+INSERT INTO tabela_wynikow(rozegrane_mecze,wygrane,remisy,przegrane,bramki,stracone_bramki,punkty,druzyna_id_fkey) VALUES (32,19,7,6,57,28,64,2);
+INSERT INTO tabela_wynikow(rozegrane_mecze,wygrane,remisy,przegrane,bramki,stracone_bramki,punkty,druzyna_id_fkey) VALUES (32,18,4,10,69,44,58,4);
+INSERT INTO tabela_wynikow(rozegrane_mecze,wygrane,remisy,przegrane,bramki,stracone_bramki,punkty,druzyna_id_fkey) VALUES (31,7,10,14,38,49,31,14);
+INSERT INTO tabela_wynikow(rozegrane_mecze,wygrane,remisy,przegrane,bramki,stracone_bramki,punkty,druzyna_id_fkey) VALUES (32,2,7,22,20,80,13,18);
+INSERT INTO tabela_wynikow(rozegrane_mecze,wygrane,remisy,przegrane,bramki,stracone_bramki,punkty,druzyna_id_fkey) VALUES (32,11,6,15,50,48,39,31);
+INSERT INTO tabela_wynikow(rozegrane_mecze,wygrane,remisy,przegrane,bramki,stracone_bramki,punkty,druzyna_id_fkey) VALUES (32,15,10,7,65,41,55,22);
+INSERT INTO tabela_wynikow(rozegrane_mecze,wygrane,remisy,przegrane,bramki,stracone_bramki,punkty,druzyna_id_fkey) VALUES (32,14,9,9,51,35,51,6);
+INSERT INTO tabela_wynikow(rozegrane_mecze,wygrane,remisy,przegrane,bramki,stracone_bramki,punkty,druzyna_id_fkey) VALUES (32,11,9,12,54,52,42,10);
+INSERT INTO tabela_wynikow(rozegrane_mecze,wygrane,remisy,przegrane,bramki,stracone_bramki,punkty,druzyna_id_fkey) VALUES (32,8,7,17,23,51,31,16);
+INSERT INTO tabela_wynikow(rozegrane_mecze,wygrane,remisy,przegrane,bramki,stracone_bramki,punkty,druzyna_id_fkey) VALUES (32,10,10,12,43,49,41,30);
+INSERT INTO tabela_wynikow(rozegrane_mecze,wygrane,remisy,przegrane,bramki,stracone_bramki,punkty,druzyna_id_fkey) VALUES (32,5,6,21,34,67,21,36);
+INSERT INTO tabela_wynikow(rozegrane_mecze,wygrane,remisy,przegrane,bramki,stracone_bramki,punkty,druzyna_id_fkey) VALUES (32,16,10,6,62,40,58,21);
+INSERT INTO tabela_wynikow(rozegrane_mecze,wygrane,remisy,przegrane,bramki,stracone_bramki,punkty,druzyna_id_fkey) VALUES (32,15,8,9,50,43,53,23);
+INSERT INTO tabela_wynikow(rozegrane_mecze,wygrane,remisy,przegrane,bramki,stracone_bramki,punkty,druzyna_id_fkey) VALUES (32,15,6,11,47,42,51,24);
+COMMIT;
+
+-- TRANSFERY
+BEGIN;
+INSERT INTO transfer(klub_oddajacy,umowa_do,wartosc_rynkowa,druzyna_id_fkey,pilkarze_id_fkey) VALUES('Juventus Turyn','2021-06-30',20000000,1,1);
+INSERT INTO transfer(klub_oddajacy,umowa_do,wartosc_rynkowa,druzyna_id_fkey,pilkarze_id_fkey) VALUES('FC Bayern U19','2026-06-30',1000000,1,3);
+INSERT INTO transfer(klub_oddajacy,umowa_do,wartosc_rynkowa,druzyna_id_fkey,pilkarze_id_fkey) VALUES('FC Bayern II','2021-06-30',6300000,1,4);
+INSERT INTO transfer(klub_oddajacy,umowa_do,wartosc_rynkowa,druzyna_id_fkey,pilkarze_id_fkey) VALUES('RB Salzburg','2021-06-30',25000000,2,5);
+INSERT INTO transfer(klub_oddajacy,umowa_do,wartosc_rynkowa,druzyna_id_fkey,pilkarze_id_fkey) VALUES('Hertha BSC U19','2025-06-30',1500000,2,6);
+INSERT INTO transfer(klub_oddajacy,umowa_do,wartosc_rynkowa,druzyna_id_fkey,pilkarze_id_fkey) VALUES('Monaco','2022-06-30',12000000,2,7);
+INSERT INTO transfer(klub_oddajacy,umowa_do,wartosc_rynkowa,druzyna_id_fkey,pilkarze_id_fkey) VALUES('RB Leipzig U19','2022-06-30',1000000,2,8);
+INSERT INTO transfer(klub_oddajacy,umowa_do,wartosc_rynkowa,druzyna_id_fkey,pilkarze_id_fkey) VALUES('RB Salzburg','2024-06-30',110000000,4,9);
+INSERT INTO transfer(klub_oddajacy,umowa_do,wartosc_rynkowa,druzyna_id_fkey,pilkarze_id_fkey) VALUES('Dynamo Dresden','2023-06-30',900000,4,10);
+INSERT INTO transfer(klub_oddajacy,umowa_do,wartosc_rynkowa,druzyna_id_fkey,pilkarze_id_fkey) VALUES('Paris SG','2024-06-30',24000000,4,11);
+INSERT INTO transfer(klub_oddajacy,umowa_do,wartosc_rynkowa,druzyna_id_fkey,pilkarze_id_fkey) VALUES('Juventus Turyn','2024-06-30',24000000,4,12);
+INSERT INTO transfer(klub_oddajacy,umowa_do,wartosc_rynkowa,druzyna_id_fkey,pilkarze_id_fkey) VALUES('Toulouse','2021-06-30',5000000,7,13);
+INSERT INTO transfer(klub_oddajacy,umowa_do,wartosc_rynkowa,druzyna_id_fkey,pilkarze_id_fkey) VALUES('New York City FC','2022-06-30',2000000,7,14);
+INSERT INTO transfer(klub_oddajacy,umowa_do,wartosc_rynkowa,druzyna_id_fkey,pilkarze_id_fkey) VALUES('M gladbach II','2023-06-30',100000,7,15);
+COMMIT;
+
+-- PODSUMOWANIE MECZU
+BEGIN;
+INSERT INTO podsumowanie_meczu(ilosc_strzalow,ilosc_celnych_strzalow,liczba_podan,liczba_zoltych_kartek,liczba_czerwonych_kartek,liczba_rzutow_karnych,zwyciestwo) VALUES(15,5,165,0,1,2,true);
+INSERT INTO podsumowanie_meczu(ilosc_strzalow,ilosc_celnych_strzalow,liczba_podan,liczba_zoltych_kartek,liczba_czerwonych_kartek,liczba_rzutow_karnych,zwyciestwo) VALUES(74,7,117,2,0,5,true);
+INSERT INTO podsumowanie_meczu(ilosc_strzalow,ilosc_celnych_strzalow,liczba_podan,liczba_zoltych_kartek,liczba_czerwonych_kartek,liczba_rzutow_karnych,zwyciestwo) VALUES(83,2,120,0,1,2,false);
+INSERT INTO podsumowanie_meczu(ilosc_strzalow,ilosc_celnych_strzalow,liczba_podan,liczba_zoltych_kartek,liczba_czerwonych_kartek,liczba_rzutow_karnych,zwyciestwo) VALUES(15,1,78,3,0,2,true);
+INSERT INTO podsumowanie_meczu(ilosc_strzalow,ilosc_celnych_strzalow,liczba_podan,liczba_zoltych_kartek,liczba_czerwonych_kartek,liczba_rzutow_karnych,zwyciestwo) VALUES(34,5,65,0,2,0,false);
+INSERT INTO podsumowanie_meczu(ilosc_strzalow,ilosc_celnych_strzalow,liczba_podan,liczba_zoltych_kartek,liczba_czerwonych_kartek,liczba_rzutow_karnych,zwyciestwo) VALUES(15,9,88,0,0,2,true);
+INSERT INTO podsumowanie_meczu(ilosc_strzalow,ilosc_celnych_strzalow,liczba_podan,liczba_zoltych_kartek,liczba_czerwonych_kartek,liczba_rzutow_karnych,zwyciestwo) VALUES(6,11,92,1,0,5,false);
+INSERT INTO podsumowanie_meczu(ilosc_strzalow,ilosc_celnych_strzalow,liczba_podan,liczba_zoltych_kartek,liczba_czerwonych_kartek,liczba_rzutow_karnych,zwyciestwo) VALUES(15,2,12,0,1,2,true);
+INSERT INTO podsumowanie_meczu(ilosc_strzalow,ilosc_celnych_strzalow,liczba_podan,liczba_zoltych_kartek,liczba_czerwonych_kartek,liczba_rzutow_karnych,zwyciestwo) VALUES(15,6,53,2,0,3,true);
+INSERT INTO podsumowanie_meczu(ilosc_strzalow,ilosc_celnych_strzalow,liczba_podan,liczba_zoltych_kartek,liczba_czerwonych_kartek,liczba_rzutow_karnych,zwyciestwo) VALUES(15,2,21,0,0,2,false);
+INSERT INTO podsumowanie_meczu(ilosc_strzalow,ilosc_celnych_strzalow,liczba_podan,liczba_zoltych_kartek,liczba_czerwonych_kartek,liczba_rzutow_karnych,zwyciestwo) VALUES(22,8,87,5,0,5,true);
+INSERT INTO podsumowanie_meczu(ilosc_strzalow,ilosc_celnych_strzalow,liczba_podan,liczba_zoltych_kartek,liczba_czerwonych_kartek,liczba_rzutow_karnych,zwyciestwo) VALUES(15,2,93,0,2,2,true);
+INSERT INTO podsumowanie_meczu(ilosc_strzalow,ilosc_celnych_strzalow,liczba_podan,liczba_zoltych_kartek,liczba_czerwonych_kartek,liczba_rzutow_karnych,zwyciestwo) VALUES(55,4,12,2,0,1,false);
+INSERT INTO podsumowanie_meczu(ilosc_strzalow,ilosc_celnych_strzalow,liczba_podan,liczba_zoltych_kartek,liczba_czerwonych_kartek,liczba_rzutow_karnych,zwyciestwo) VALUES(15,7,64,5,1,1,false);
+INSERT INTO podsumowanie_meczu(ilosc_strzalow,ilosc_celnych_strzalow,liczba_podan,liczba_zoltych_kartek,liczba_czerwonych_kartek,liczba_rzutow_karnych,zwyciestwo) VALUES(22,4,99,0,0,2,false);
+COMMIT;
+
+-- MECZE
+BEGIN;
+INSERT INTO mecze(data_wydarzenia,wynik,podsumowanie_meczu_id_fkey) VALUES('2021-03-06','1:1',14);
+INSERT INTO mecze(data_wydarzenia,wynik,podsumowanie_meczu_id_fkey) VALUES('2021-03-06','2:1',7);
+INSERT INTO mecze(data_wydarzenia,wynik,podsumowanie_meczu_id_fkey) VALUES('2021-02-20','0:1',3);
+INSERT INTO mecze(data_wydarzenia,wynik,podsumowanie_meczu_id_fkey) VALUES('2021-01-26','5:2',13);
+INSERT INTO mecze(data_wydarzenia,wynik,podsumowanie_meczu_id_fkey) VALUES('2021-04-16','0:9',6);
+INSERT INTO mecze(data_wydarzenia,wynik,podsumowanie_meczu_id_fkey) VALUES('2021-02-08','1:2',2);
+INSERT INTO mecze(data_wydarzenia,wynik,podsumowanie_meczu_id_fkey) VALUES('2021-02-12','5:5',9);
+INSERT INTO mecze(data_wydarzenia,wynik,podsumowanie_meczu_id_fkey) VALUES('2021-02-01','2:2',10);
+INSERT INTO mecze(data_wydarzenia,wynik,podsumowanie_meczu_id_fkey) VALUES('2021-03-11','2:6',1);
+INSERT INTO mecze(data_wydarzenia,wynik,podsumowanie_meczu_id_fkey) VALUES('2021-03-21','1:2',4);
+INSERT INTO mecze(data_wydarzenia,wynik,podsumowanie_meczu_id_fkey) VALUES('2021-03-30','7:2',11);
+INSERT INTO mecze(data_wydarzenia,wynik,podsumowanie_meczu_id_fkey) VALUES('2021-04-15','0:3',15);
+INSERT INTO mecze(data_wydarzenia,wynik,podsumowanie_meczu_id_fkey) VALUES('2021-04-05','3:0',5);
+INSERT INTO mecze(data_wydarzenia,wynik,podsumowanie_meczu_id_fkey) VALUES('2021-03-12','6:6',8);
+INSERT INTO mecze(data_wydarzenia,wynik,podsumowanie_meczu_id_fkey) VALUES('2021-03-15','2:6',12);
+COMMIT;
+
+-- DRUZYNA HAS MECZE
+BEGIN;
+INSERT INTO druzyna_has_mecze(druzyna_id_fkey,mecze_id_fkey) VALUES(1,8);
+INSERT INTO druzyna_has_mecze(druzyna_id_fkey,mecze_id_fkey) VALUES(2,4);
+INSERT INTO druzyna_has_mecze(druzyna_id_fkey,mecze_id_fkey) VALUES(5,6);
+INSERT INTO druzyna_has_mecze(druzyna_id_fkey,mecze_id_fkey) VALUES(1,12);
+INSERT INTO druzyna_has_mecze(druzyna_id_fkey,mecze_id_fkey) VALUES(8,3);
+INSERT INTO druzyna_has_mecze(druzyna_id_fkey,mecze_id_fkey) VALUES(4,14);
+INSERT INTO druzyna_has_mecze(druzyna_id_fkey,mecze_id_fkey) VALUES(12,11);
+INSERT INTO druzyna_has_mecze(druzyna_id_fkey,mecze_id_fkey) VALUES(23,1);
+INSERT INTO druzyna_has_mecze(druzyna_id_fkey,mecze_id_fkey) VALUES(12,3);
+INSERT INTO druzyna_has_mecze(druzyna_id_fkey,mecze_id_fkey) VALUES(30,5);
+INSERT INTO druzyna_has_mecze(druzyna_id_fkey,mecze_id_fkey) VALUES(21,3);
+INSERT INTO druzyna_has_mecze(druzyna_id_fkey,mecze_id_fkey) VALUES(14,2);
+INSERT INTO druzyna_has_mecze(druzyna_id_fkey,mecze_id_fkey) VALUES(7,8);
+INSERT INTO druzyna_has_mecze(druzyna_id_fkey,mecze_id_fkey) VALUES(26,9);
+INSERT INTO druzyna_has_mecze(druzyna_id_fkey,mecze_id_fkey) VALUES(2,1);
+COMMIT;
+
+
+
+
+-- CZĘŚĆ 3_3
+BEGIN;
+
+		SELECT * FROM druzyna WHERE id_druzyna = 11;
+		DELETE FROM druzyna WHERE id_druzyna = 11;
+
+	SAVEPOINT delete_druzyna;
+	
+		SELECT * FROM druzyna WHERE id_druzyna = 2;
+		UPDATE druzyna SET nazwa = 'Leipzig' WHERE id_druzyna = 2;
+	
+	SAVEPOINT update_druzyna;
+	
+		SELECT * FROM pilkarze WHERE id_pilkarze = 2;
+		DELETE FROM pilkarze WHERE id_pilkarze = 2;
+
+	SAVEPOINT delete_pilkarze;
+	
+		SELECT * FROM druzyna WHERE id_druzyna = 11;
+		SELECT * FROM druzyna WHERE id_druzyna = 2;
+		SELECT * FROM podsumowanie_meczu WHERE id_podsumowanie_meczu = 12;
+		SELECT * FROM pilkarze WHERE id_pilkarze = 2;
+
+	
+	ROLLBACK TO delete_pilkarze;
+	ROLLBACK TO update_druzyna;
+	ROLLBACK TO delete_druzyna;
+
+ROLLBACK;
+
+
+-- CZĘŚĆ 3_4
+-- READ COMMITTED
+--BEGIN TRANSACTION ISOLATION LEVEL READ COMMITTED;
+--
+--		SELECT * FROM druzyna;
+--		INSERT INTO druzyna(nazwa,trener,stadion,prezes) VALUES('cos1','cos1','cos1','cos1');
+--		
+--commit;
+--SELECT * FROM druzyna;
+
+
+-- SERIALIZABLE
+--BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+--
+--		SELECT * FROM druzyna;
+--		INSERT INTO druzyna(nazwa,trener,stadion,prezes) VALUES('cos2','cos2','cos2','cos2');
+--	
+--ROLLBACK;
+--SELECT * FROM druzyna;
+
+
+-- DEAD LOCK  do skryptu 3
+--BEGIN;
+--	
+--		UPDATE druzyna SET nazwa = 'Leipzig' WHERE id_druzyna = 2;
+--    	UPDATE pilkarze SET imie = 'Andre' WHERE id_pilkarze = 15;
+--    
+--    	SELECT * FROM druzyna;
+--		SELECT * FROM pilkarze;
+--    
+--ROLLBACK;
+--
+--SELECT * FROM druzyna;
+--SELECT * FROM pilkarze;
+
+-- CZĘŚĆ 4 ================================================================
+
+REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+REVOKE ALL ON DATABASE postgres FROM PUBLIC;
+
+-- CZĘŚĆ 4_2
+
+CREATE ROLE wlasciciel;
+CREATE ROLE pracownicy;
+CREATE ROLE programisci;
+CREATE ROLE uzytkownik;
+
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA pilka_nozna TO wlasciciel;
+
+CREATE USER boss WITH PASSWORD 'haslo';
+ALTER USER boss WITH SUPERUSER;
+ALTER USER boss WITH CREATEROLE;
+-- NIE WIEM JAK SCHEMATY
+GRANT boss TO wlasciciel;
+
+-- pracownicy:
+-- SELECT ---> Wyświetlanie tabel
+-- UPDATE ---> Zmienianie danych (np: w zmiany nazwy klubu)
+-- INSERT ---> Wprowadzenie danych (np: informacje o meczach)
+
+-- uzytkownik:
+-- SELECT ---> Wyświetlanie statystyk drużyn
+
+CREATE USER programista WITH PASSWORD 'haslo';
+GRANT programista TO programisci;
+GRANT programista TO wlasciciel;
+
+GRANT SELECT ON ALL TABLES IN SCHEMA pilka_nozna TO programisci;
+GRANT CREATE ON SCHEMA pilka_nozna TO programisci;
+GRANT REFERENCES ON ALL TABLES IN SCHEMA pilka_nozna TO programisci;
+GRANT SELECT ON ALL TABLES IN SCHEMA pilka_nozna TO uzytkownik;
+GRANT SELECT, UPDATE, INSERT ON ALL TABLES IN SCHEMA pilka_nozna TO pracownicy;
+
+CREATE USER usere WITH PASSWORD 'haslo';
+GRANT usere TO uzytkownik;
+
+CREATE USER worker WITH PASSWORD 'haslo';
+GRANT worker TO pracownicy;
+
+
+-- CZĘŚĆ 4_3
+--NA UŻYTKOWNIKU BOSS
+--REVOKE SELECT ON ALL TABLES IN SCHEMA pilka_nozna FROM pracownicy;
+
+-- CZĘŚĆ 4_4
+-- UZYTKOWNIK
+-- Ile jest pilkarzy w danej druzynie (nie chciało mi się robić 600 insertów)
+SELECT d.nazwa AS Druzyna, count(p.imie) AS Liczba_Pilkarzy 
+FROM druzyna AS d 
+INNER JOIN pilkarze AS p 
+ON p.id_pilkarze = d.id_druzyna 
+GROUP BY d.nazwa;
+
+-- Drużyna z największą ilością wygranych
+SELECT d.nazwa AS Druzyna, max(tw.wygrane) AS Wygrane
+FROM druzyna AS d
+INNER JOIN tabela_wynikow AS tw 
+ON tw.id_tabela_wynikow = d.id_druzyna 
+GROUP BY d.nazwa, tw.wygrane 
+HAVING tw.wygrane = (SELECT max(tw.wygrane) FROM tabela_wynikow AS tw);
+
+-- punkty druzyny
+SELECT d.nazwa AS Druzyna, tw.punkty AS punkty
+FROM druzyna AS d
+INNER JOIN tabela_wynikow AS tw 
+ON tw.id_tabela_wynikow = d.id_druzyna 
+ORDER BY tw.punkty DESC;
+
+-- ilosc remisów
+SELECT d.nazwa AS Druzyna, tw.remisy AS remisy
+FROM druzyna AS d
+INNER JOIN tabela_wynikow AS tw 
+ON tw.id_tabela_wynikow = d.id_druzyna;
+
+-- PRACOWNIK CO ON POTRZEBUJE INNEGO
+SELECT *
+FROM tabela_wynikow;
+
+-- CZĘŚĆ 4_5
+
+CREATE OR REPLACE VIEW liczba_pilkarzy_w_druzynie AS 
+SELECT d.nazwa AS Druzyna, count(p.imie) AS Liczba_Pilkarzy 
+FROM druzyna AS d 
+INNER JOIN pilkarze AS p 
+ON p.id_pilkarze = d.id_druzyna 
+GROUP BY d.nazwa;
+
+CREATE OR REPLACE VIEW najwieksza_liczba_punktow AS 
+SELECT d.nazwa AS Druzyna, max(tw.wygrane) AS Wygrane
+FROM druzyna AS d
+INNER JOIN tabela_wynikow AS tw 
+ON tw.id_tabela_wynikow = d.id_druzyna 
+GROUP BY d.nazwa, tw.wygrane 
+HAVING tw.wygrane = (SELECT max(tw.wygrane) FROM tabela_wynikow AS tw);
+
+CREATE OR REPLACE VIEW posortowane_punkty AS 
+SELECT d.nazwa AS Druzyna, tw.punkty AS punkty
+FROM druzyna AS d
+INNER JOIN tabela_wynikow AS tw 
+ON tw.id_tabela_wynikow = d.id_druzyna 
+ORDER BY tw.punkty DESC;
+
+CREATE OR REPLACE VIEW ilosc_remisow AS 
+SELECT d.nazwa AS Druzyna, tw.remisy AS remisy
+FROM druzyna AS d
+INNER JOIN tabela_wynikow AS tw 
+ON tw.id_tabela_wynikow = d.id_druzyna;
+
+CREATE OR REPLACE VIEW pokaz_cala_tabele AS 
+SELECT *
+FROM tabela_wynikow;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
